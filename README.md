@@ -9,9 +9,11 @@ Make the consuming Cargo workspace's root available to an external crate's
 `build.rs` of a crate that belongs to a workspace. In that situation it can
 discover that workspace's root.
 
-That does not directly help an external crate from crates.io: its sources are
-built from Cargo's cache, outside the consuming workspace. Its `build.rs` may
-still need reflection on that workspace—for example, its `Cargo.lock`.
+An external crate's `build.rs` cannot use `project-root` directly to find the
+consuming workspace: because the external crate is built from Cargo's cache,
+that call would return the cache path instead. The external build script may
+nevertheless need the consuming workspace—for example, to reuse its
+`Cargo.lock`.
 
 `project-root-patch` installs a small helper crate into the consuming workspace
 and patches dependencies to use it. The helper's `build.rs` calls
