@@ -12,10 +12,12 @@ calls this API from its `build.rs`:
 let project_root = project_root_patch::get_project_root();
 ```
 
-Without the setup below, that call panics with an explanatory message because
-the dependency is being built from Cargo's cache. Running
-`cargo project-root-patch install .` in the consuming workspace makes it return
-the consuming workspace's root:
+By default, Cargo builds the `project-root-patch` dependency from its registry
+cache. In that mode, `project_root_patch::get_project_root()` panics with setup
+instructions because it cannot determine the consuming workspace.
+
+To make the function return the consuming workspace's root, run this command
+from that workspace's root directory:
 
 1. It creates `<workspace>/project-root-patch/`, a local non-published helper
    package with the same package name and the `project_root_patch` library API.
