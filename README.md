@@ -3,22 +3,35 @@
 Make the consuming Cargo workspace's root available to an external crate's
 `build.rs`.
 
-## Why this exists
+## How it works
 
-[`project-root`](https://crates.io/crates/project-root) is called by the
-`build.rs` of a crate that belongs to a workspace. In that situation it can
-discover that workspace's root.
+An external crate declares a normal dependency on `project-root-patch` and
+calls this API from its `build.rs`:
 
-An external crate's `build.rs` cannot use `project-root` directly to find the
-consuming workspace: because the external crate is built from Cargo's cache,
-that call would return the cache path instead. The external build script may
-nevertheless need the consuming workspace—for example, to reuse its
-`Cargo.lock`.
+```rust
+let project_root = project_root_patch::get_project_root();
+```
 
-`project-root-patch` installs a small helper crate into the consuming workspace
-and patches dependencies to use it. The helper's `build.rs` calls
-`project-root`, records the workspace root, and exposes it through
-`project_root_patch::get_project_root()` to external dependents.
+Running `cargo project-root-patch install .` in the consuming workspace makes
+that call return the consuming workspace's root:
+
+1. It creates `<workspace>/project-root-patch/`, a local non-published helper
+   package with the same package name and the `project_root_patch` library API.
+2. It adds that directory as a workspace member.
+3. It adds this override to the workspace manifest:
+
+   ```toml
+   [patch.crates-io]
+   project-root-patch = { path = "project-root-patch" }
+   ```
+
+Cargo applies the patch across the dependency graph. Therefore the external
+crate's `project_root_patch::get_project_root()` call is compiled from the
+injected local helper, rather than from the registry dependency. That helper's
+`build.rs` calls the upstream [`project-root`](https://crates.io/crates/project-root)
+crate while it is inside the consuming workspace, so it can record the real
+workspace root. If the patch is absent, `get_project_root()` panics with setup
+instructions rather than returning a Cargo-cache path.
 
 ## Example: lockfile-accurate model builds
 
@@ -48,23 +61,5 @@ let lockfile = project_root_patch::get_project_root().join("Cargo.lock");
    cargo project-root-patch install .
    ```
 
-   The command creates a `project-root-patch/` member and adds a
-   `[patch.crates-io]` entry. It does not modify the external crate that needs
-   the root path.
-
 3. Build the workspace normally. Every dependency on `project-root-patch`
    resolves to the local helper through the patch.
-
-## Use from Rust
-
-Add `project-root-patch` as a build dependency of the crate that needs the
-path, then call its library API:
-
-```rust
-let project_root = project_root_patch::get_project_root();
-let lockfile = project_root.join("Cargo.lock");
-```
-
-`get_project_root()` panics with setup instructions when the helper was not
-installed into the destination workspace. This avoids silently using a path
-from Cargo's cache.
