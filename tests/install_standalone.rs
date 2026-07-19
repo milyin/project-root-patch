@@ -206,12 +206,13 @@ fn cargo_run_and_assert_workspace(dir: &Path, pkg: Option<&str>) {
     );
 
     let printed = stdout.trim();
+    let actual = fs::canonicalize(Path::new(printed)).expect("canonicalize reported workspace dir");
     let expected = fs::canonicalize(dir).expect("canonicalize workspace dir");
-    let expected_str = expected.to_string_lossy();
     eprintln!("[test] program printed: {}", printed);
-    eprintln!("[test] expected root  : {}", expected_str);
+    eprintln!("[test] actual root   : {}", actual.display());
+    eprintln!("[test] expected root : {}", expected.display());
     assert_eq!(
-        printed, expected_str,
+        actual, expected,
         "printed workspace root does not match expected"
     );
 }
